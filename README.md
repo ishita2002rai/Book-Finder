@@ -34,8 +34,11 @@ A sleek and responsive web app to search, preview, and favorite books using the 
 ## 📂 Project Structure
 
 📁 book-finder/
+
 ├── index.html # Main application file
+
 ├── style.css # (Inline in HTML) 
+
 └── README.md # You're here!
 
 ----
