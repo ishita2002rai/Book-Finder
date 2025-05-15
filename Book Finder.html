@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Book Finder</title>
+  <!-- Barrio font -->
+  <link href="https://fonts.googleapis.com/css2?family=Barrio&display=swap" rel="stylesheet">
+  <style>
+    /* === Color Variables === */
+    :root {
+      --bg: #f4f4f9;
+      --text: #333;
+      --card-bg: #fff;
+      --header-bg: #4a90e2;
+      --input-bg: #fff;
+      --input-border: #ddd;
+      --input-focus: #4a90e2;
+      --tag-bg: #e4e7fa;
+      --tag-text: #2c3e50;
+      --highlight-light: #ffeb3b;
+    }
+    .dark {
+      --bg: #121212;
+      --text: #e0e0e0;
+      --card-bg: #1e1e1e;
+      --header-bg: #1f1f1f;
+      --input-bg: #2c2c2c;
+      --input-border: #444;
+      --input-focus: #61dafb;
+      --tag-bg: #333;
+      --tag-text: #e0e0e0;
+    }
+
+    * { box-sizing: border-box; margin:0; padding:0 }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
+        Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* === Header === */
+    header {
+      position: relative;
+      background: var(--header-bg);
+      padding: 1rem;
+      text-align: center;
+      color: #fff;
+    }
+    header h1 {
+      margin:0;
+      font-family: 'Barrio', cursive;
+      font-size: 2rem;
+      transition: transform .2s ease;
+      display: inline-block;
+    }
+    header h1:hover {
+      transform: translateY(-4px);
+    }
+
+    /* Hamburger & Theme toggles */
+    #menuToggle, #themeToggle {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      color: #fff;
+      cursor: pointer;
+      z-index: 1100;
+    }
+    #menuToggle { left: 1rem; font-size: 1.6rem; }
+    #themeToggle{ right:1rem; font-size:1.4rem; }
+
+    /* === View Title === */
+    .view-title {
+      display: none;
+      padding: 0.5rem 1rem;
+      font-size: 1.2rem;
+      text-align: center;
+      width: 100%;
+      margin: 0 auto;
+      color: var(--header-bg);
+      font-weight: bold;
+    }
+    .dark .view-title {
+      color: var(--highlight-light);
+    }
+
+    /* === Side Menu & Overlay === */
+    #sideMenu {
+      position: fixed;
+      top: 0; left: -250px;
+      width: 250px; height: 100%;
+      background: var(--card-bg);
+      box-shadow: 2px 0 6px rgba(0,0,0,0.2);
+      transition: left 0.3s;
+      z-index: 1050;
+      padding-top: 3rem;
+    }
+    #sideMenu ul { list-style: none; }
+    #sideMenu li {
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid var(--input-border);
+      cursor: pointer;
+    }
+    #sideMenu li.menu-heading { color: var(--header-bg); }
+    #sideMenu li.menu-heading:hover { font-weight: bold; }
+    .dark #sideMenu li.menu-heading { color: var(--highlight-light); }
+
+    .genre-header { display:flex; align-items:center; user-select:none; }
+    .genre-header .toggle-icon { margin-right:0.5rem; }
+    #genreList {
+      display: none;
+      list-style: none;
+      padding-left: 1.5rem;
+    }
+    #genreList li { padding:0.5rem 1rem; border-bottom:1px solid var(--input-border); }
+
+    #overlay {
+      position: fixed; top:0; left:0;
+      width:100%; height:100%;
+      background: rgba(0,0,0,0.3);
+      opacity:0; visibility:hidden;
+      transition: opacity 0.3s, visibility 0.3s;
+      z-index:1040;
+    }
+    body.menu-open #sideMenu { left:0; }
+    body.menu-open #overlay  { visibility:visible; opacity:1; }
+
+    /* === Search Bar === */
+    .search-container {
+      padding:1rem;
+      text-align:center;
+      background: var(--card-bg);
+      box-shadow:0 2px 4px rgba(0,0,0,0.1);
+    }
+    .search-container input {
+      width:90%; max-width:500px;
+      padding:0.75rem 1rem;
+      font-size:1rem;
+      border:1px solid var(--input-border);
+      border-radius:4px;
+      background: var(--input-bg);
+      color: var(--text);
+      transition: border-color .2s;
+    }
+    .search-container input:focus {
+      outline:none; border-color: var(--input-focus);
+    }
+
+    /* === Results Grid (limit card width) === */
+    .results {
+      flex:1; padding:1rem;
+      display:grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 260px));
+      justify-content: center;
+      gap:1rem;
+      max-width:1200px;
+      margin:0 auto;
+    }
+    .message {
+      grid-column:1/-1;
+      text-align:center;
+      font-size:1.1rem;
+      color:var(--text);
+      opacity:.7;
+      margin-top:2rem;
+    }
+
+    /* === Book Card (fixed max-height) === */
+    .book-card {
+      position:relative;
+      background:var(--card-bg);
+      border-radius:6px;
+      box-shadow:0 2px 6px rgba(0,0,0,0.1);
+      display:flex;
+      flex-direction:column;
+      overflow:hidden;
+      cursor:pointer;
+      transition:transform .2s;
+      max-height:360px;
+      width:100%;
+    }
+    .book-card:hover { transform:translateY(-4px); }
+
+    /* Fixed image height, no stretch */
+    .book-card img {
+      width:100%;
+      height:200px;
+      flex-shrink:0;
+      object-fit:cover;
+    }
+    .img-fallback {
+      width:100%;
+      height:200px;
+      flex-shrink:0;
+      background:#888;
+      color:#fff;
+      display:none;
+      align-items:center;
+      justify-content:center;
+      font-size:3rem;
+      user-select:none;
+    }
+    .book-details {
+      padding:.75rem 1rem;
+      flex:1;
+      display:flex;
+      flex-direction:column;
+      overflow:auto;
+    }
+    .book-details h3 { margin:0 0 .5rem; font-size:1.1rem; line-height:1.2; }
+    .book-details p {
+      margin:.25rem 0;
+      font-size:.9rem;
+      color:var(--text);
+      opacity:.8;
+    }
+
+    /* === Favorite Star === */
+    .star {
+      position:absolute;
+      top:8px; right:8px;
+      width:24px; height:24px;
+      fill:none; stroke:gold; stroke-width:2;
+      cursor:pointer; transition:transform .2s;
+    }
+    .star:hover { transform:scale(1.2); }
+    .star.filled { fill:gold; }
+
+    /* === Modal === */
+    .modal {
+      position:fixed; top:0; left:0;
+      width:100%; height:100%;
+      background:rgba(0,0,0,0.5);
+      display:flex; align-items:center; justify-content:center;
+      visibility:hidden; opacity:0;
+      transition:opacity .3s, visibility .3s;
+      z-index:1000;
+    }
+    .modal.show { visibility:visible; opacity:1; }
+    .modal-content {
+      background:var(--card-bg);
+      width:90%; max-width:600px;
+      max-height:90%; overflow-y:auto;
+      border-radius:6px; position:relative;
+      padding:1.5rem; box-shadow:0 4px 12px rgba(0,0,0,0.2);
+      color:var(--text);
+    }
+    .modal-close {
+      position:absolute; top:.5rem; right:1rem;
+      font-size:1.5rem; color:var(--text);
+      cursor:pointer;
+    }
+    .modal-content h2 { margin-top:0; }
+    .modal-content h3 {
+      margin-bottom:.5rem;
+      color: var(--header-bg);
+    }
+    .dark .modal-content h3 {
+      color: var(--highlight-light);
+    }
+    .modal-section { margin-bottom:1rem; }
+    .modal-section p { margin:.25rem 0; line-height:1.4; }
+
+    /* === Tags === */
+    .tags-container {
+      display:flex; flex-wrap: wrap; gap:.5rem; margin-top:.5rem;
+    }
+    .tag {
+      background:var(--tag-bg);
+      color:var(--tag-text);
+      padding:.25rem .75rem;
+      border-radius:12px; font-size:.85rem;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <button id="menuToggle" title="Menu">☰</button>
+    <h1>📚 Book Finder</h1>
+    <button id="themeToggle" title="Toggle dark/light">🌙</button>
+  </header>
+
+  <div id="viewTitle" class="view-title"></div>
+
+  <nav id="sideMenu">
+    <ul>
+      <li id="searchTab"   class="menu-heading">🔍 Search</li>
+      <li id="favTab"      class="menu-heading">★ Favorites</li>
+      <li id="genreHeader" class="menu-heading genre-header">
+        <span id="genreToggle" class="toggle-icon">＋</span>Genre
+      </li>
+      <ul id="genreList">
+        <li data-slug="science_fiction">Science Fiction</li>
+        <li data-slug="fantasy">Fantasy</li>
+        <li data-slug="romance">Romance</li>
+        <li data-slug="mystery">Mystery</li>
+        <li data-slug="horror">Horror</li>
+        <li data-slug="history">History</li>
+        <li data-slug="biography">Biography</li>
+      </ul>
+    </ul>
+  </nav>
+  <div id="overlay"></div>
+
+  <div class="search-container" id="searchBar">
+    <input id="searchInput" type="text" placeholder="Search books by title or author…" autocomplete="off">
+  </div>
+
+  <div class="results" id="results"></div>
+
+  <div id="bookModal" class="modal">
+    <div class="modal-content">
+      <span id="modalClose" class="modal-close">&times;</span>
+      <div id="modalBody"></div>
+    </div>
+  </div>
+
+  <script>
+  // ==== Theme Toggle ====
+  const themeToggle = document.getElementById('themeToggle');
+  function applyTheme(d){
+    document.body.classList.toggle('dark', d);
+    themeToggle.textContent = d ? '☀️' : '🌙';
+    localStorage.setItem('theme', d ? 'dark' : 'light');
+  }
+  const saved = localStorage.getItem('theme'),
+        pref = window.matchMedia('(prefers-color-scheme:dark)').matches;
+  applyTheme(saved ? saved==='dark' : pref);
+  themeToggle.addEventListener('click',()=> applyTheme(!document.body.classList.contains('dark')));
+
+  // ==== Favorites Store ====
+  let favoritesList = JSON.parse(localStorage.getItem('favoritesList')||'[]'),
+      favoritesKeys = new Set(favoritesList.map(b=>b.key));
+  function saveFavorites(){
+    localStorage.setItem('favoritesList', JSON.stringify(favoritesList));
+  }
+
+  // ==== DOM Elements & State ====
+  const menuToggle = document.getElementById('menuToggle'),
+        overlay    = document.getElementById('overlay'),
+        searchTab  = document.getElementById('searchTab'),
+        favTab     = document.getElementById('favTab'),
+        genreHeader= document.getElementById('genreHeader'),
+        genreToggle= document.getElementById('genreToggle'),
+        genreList  = document.getElementById('genreList'),
+        searchBar  = document.getElementById('searchBar'),
+        searchInput= document.getElementById('searchInput'),
+        viewTitle  = document.getElementById('viewTitle'),
+        resultsDiv = document.getElementById('results'),
+        modal      = document.getElementById('bookModal'),
+        modalBody  = document.getElementById('modalBody'),
+        modalClose = document.getElementById('modalClose');
+  let currentView = 'search';
+
+  // ==== Menu open/close ====
+  menuToggle.addEventListener('click',e=>{
+    e.stopPropagation(); document.body.classList.add('menu-open');
+  });
+  overlay.addEventListener('click',()=>{
+    document.body.classList.remove('menu-open');
+  });
+
+  // ==== Tabs ====
+  searchTab.addEventListener('click',()=>{
+    currentView = 'search';
+    searchBar.style.display='block';
+    viewTitle.style.display='none';
+    resultsDiv.innerHTML='';
+    document.body.classList.remove('menu-open');
+  });
+  favTab.addEventListener('click',()=>{
+    currentView = 'favorites';
+    searchBar.style.display='none';
+    viewTitle.style.display='none';
+    const docs = favoritesList.map(b=>({
+      key:b.key, title:b.title, author_name:[b.author],
+      first_publish_year:b.year, coverUrl:b.coverUrl
+    }));
+    displayResults(docs);
+    document.body.classList.remove('menu-open');
+  });
+
+  // ==== Genre expand/collapse & selection ====
+  genreHeader.addEventListener('click',()=>{
+    const open = genreList.style.display==='block';
+    genreList.style.display = open ? 'none' : 'block';
+    genreToggle.textContent = open ? '＋' : '－';
+  });
+  genreList.querySelectorAll('li').forEach(li=>{
+    li.addEventListener('click',()=>{
+      currentView='genre';
+      const slug=li.dataset.slug, name=li.textContent;
+      searchBar.style.display='none';
+      viewTitle.textContent=`Genre: ${name}`;
+      viewTitle.style.display='block';
+      document.body.classList.remove('menu-open');
+      fetchByGenre(slug);
+    });
+  });
+
+  // ==== Search Handler ====
+  let debounce;
+  searchInput.addEventListener('input',()=>{
+    clearTimeout(debounce);
+    const q=searchInput.value.trim();
+    debounce=setTimeout(()=>{
+      if(q.length>2){
+        currentView='search';
+        searchBar.style.display='block';
+        viewTitle.style.display='none';
+        fetchBooks(q);
+      } else {
+        resultsDiv.innerHTML='';
+      }
+    },500);
+  });
+
+  // ==== Fetch/Search & Genre ====  
+  async function fetchBooks(q){
+    resultsDiv.innerHTML='<p class="message">Searching…</p>';
+    try {
+      const res=await fetch(`https://openlibrary.org/search.json?q=${encodeURIComponent(q)}`),
+            data=await res.json();
+      displayResults(data.docs);
+    } catch {
+      resultsDiv.innerHTML='<p class="message">Error. Please try again.</p>';
+    }
+  }
+
+  async function fetchByGenre(slug){
+    resultsDiv.innerHTML='<p class="message">Loading genre…</p>';
+    try {
+      const res=await fetch(`https://openlibrary.org/subjects/${slug}.json?limit=24`),
+            data=await res.json(),
+            docs=data.works.map(w=>({
+              key:w.key,
+              title:w.title,
+              author_name:w.authors.map(a=>a.name),
+              first_publish_year:w.first_publish_year,
+              cover_i:w.cover_id
+            }));
+      displayResults(docs);
+    } catch {
+      resultsDiv.innerHTML='<p class="message">Failed to load genre.</p>';
+    }
+  }
+
+  // ==== Render Cards ====
+  function displayResults(books){
+    resultsDiv.innerHTML='';
+    if(!books||!books.length){
+      return resultsDiv.innerHTML='<p class="message">No books found.</p>';
+    }
+    books.slice(0,24).forEach(book=>{
+      const title=book.title||'No title',
+            author=Array.isArray(book.author_name)
+                     ? book.author_name.join(', ')
+                     : book.author_name||'Unknown',
+            year=book.first_publish_year||'N/A',
+            cover=book.coverUrl
+               || (book.cover_i
+                   ?`https://covers.openlibrary.org/b/id/${book.cover_i}-M.jpg`:'');
+      const card=document.createElement('div');
+      card.className='book-card';
+      card.dataset.workKey=book.key;
+      card.innerHTML=`
+        <img alt="Cover of ${title}">
+        <div class="img-fallback">${title.charAt(0).toUpperCase()}</div>
+        <svg class="star" viewBox="0 0 24 24">
+          <path d="M12 17.27L18.18 21 16.55 13.97
+                   22 9.24 14.81 8.63 12 2 9.19 8.63
+                   2 9.24 7.45 13.97 5.82 21z"/>
+        </svg>
+        <div class="book-details">
+          <h3>${title}</h3>
+          <p><strong>Author:</strong> ${author}</p>
+          <p><strong>First published:</strong> ${year}</p>
+        </div>
+      `;
+      const img=card.querySelector('img'),
+            fb=card.querySelector('.img-fallback');
+      if(cover){
+        img.src=cover;
+        img.onload=()=>fb.style.display='none';
+        img.onerror=()=>{
+          img.style.display='none';
+          fb.style.display='flex';
+        };
+      } else {
+        img.style.display='none';
+        fb.style.display='flex';
+      }
+      const star=card.querySelector('.star');
+      if(favoritesKeys.has(book.key)) star.classList.add('filled');
+      star.addEventListener('click',e=>{
+        e.stopPropagation();
+        const wasFav=favoritesKeys.has(book.key);
+        if(!wasFav){
+          star.classList.add('filled');
+          favoritesKeys.add(book.key);
+          favoritesList.push({ key:book.key, title, author, year, coverUrl:cover });
+        } else {
+          star.classList.remove('filled');
+          favoritesKeys.delete(book.key);
+          favoritesList=favoritesList.filter(b=>b.key!==book.key);
+          if(currentView==='favorites') card.remove();
+        }
+        saveFavorites();
+      });
+      card.addEventListener('click',()=>openModal(book.key,title));
+      resultsDiv.appendChild(card);
+    });
+  }
+
+  // ==== Modal Details ====
+  async function openModal(workKey,title){
+    modalBody.innerHTML=`<h2>${title}</h2><p>Loading details…</p>`;
+    modal.classList.add('show');
+    try {
+      const workRes=await fetch(`https://openlibrary.org${workKey}.json`),
+            work=await workRes.json();
+      modalBody.innerHTML=`
+        <h2>${title}</h2>
+        <div id="modalDesc" class="modal-section"><h3>Description</h3><p>Loading…</p></div>
+        <div id="modalSubjects" class="modal-section"><h3>Subjects</h3><p>Loading…</p></div>
+        <div id="modalAuthors" class="modal-section"><h3>Author Bio</h3><p>Loading…</p></div>
+      `;
+      let desc='No description available.';
+      if(work.description){
+        desc=typeof work.description==='string'
+             ? work.description
+             : work.description.value||desc;
+      }
+      const trans=await translateText(desc);
+      document.getElementById('modalDesc').innerHTML=`
+        <h3>Description</h3><p>${escapeHTML(trans)}</p>
+      `;
+      const subs=work.subjects||[];
+      document.getElementById('modalSubjects').innerHTML=`
+        <h3>Subjects</h3>
+        ${subs.length
+          ? `<div class="tags-container">${subs.map(s=>`<span class="tag">${escapeHTML(s)}</span>`).join('')}</div>`
+          : `<p>No subjects available.</p>`
+        }
+      `;
+      const authors=work.authors||[];
+      if(authors.length){
+        const infos=await Promise.all(authors.map(async a=>{
+          const r=await fetch(`https://openlibrary.org${a.author.key}.json`),
+                d=await r.json();
+          let bio='No bio available.';
+          if(d.bio){
+            bio=typeof d.bio==='string'?d.bio:d.bio.value||bio;
+          }
+          return { name:d.name||'Unknown', bio };
+        }));
+        document.getElementById('modalAuthors').innerHTML=`
+          <h3>Author Bio</h3>
+          ${infos.map(ai=>`
+            <h4>${escapeHTML(ai.name)}</h4>
+            <p>${escapeHTML(ai.bio)}</p>
+          `).join('')}
+        `;
+      } else {
+        document.getElementById('modalAuthors').innerHTML=`
+          <h3>Author Bio</h3><p>No author info.</p>
+        `;
+      }
+    } catch {
+      modalBody.innerHTML=`<p class="message">Failed to load details.</p>`;
+    }
+  }
+
+  modalClose.addEventListener('click',()=>modal.classList.remove('show'));
+  modal.addEventListener('click',e=>{ if(e.target===modal) modal.classList.remove('show'); });
+
+  // ==== Utils ====
+  function escapeHTML(str){
+    return str.replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+  }
+  async function translateText(text){
+    try {
+      const res=await fetch('https://libretranslate.de/translate',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({ q:text, source:'auto', target:'en', format:'text' })
+      });
+      const j=await res.json();
+      return j.translatedText||text;
+    } catch {
+      return text;
+    }
+  }
+  </script>
+</body>
+</html>
